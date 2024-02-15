@@ -1,60 +1,70 @@
 import streamlit as st
 import numpy as np
 import joblib
+import pandas as pd
 
-st.title('Predicciones con Modelo de Clasificación')
+# Cargar los modelos previamente entrenados
+modelo_clas = joblib.load('modelo_clas.joblib')
+modelo_reg = joblib.load('modelo_reg.joblib')
+# Definir variables
+numeric_features = ['MinTemp', 'MaxTemp', 'Rainfall', 'Evaporation', 'Sunshine', 'WindGustSpeed', 'WindSpeed9am', 'WindSpeed3pm', 'Humidity9am', 'Humidity3pm', 'Pressure9am', 'Pressure3pm', 'Cloud9am', 'Cloud3pm', 'Temp9am', 'Temp3pm']
+categorical_features = ['WindGustDir', 'WindDir9am', 'WindDir3pm', 'RainToday', 'Mes']
+# Definir opciones para variables categóricas
+cardinals_points = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW' ]
+categorical_options = {'RainToday': ['Yes', 'No' ] , 'WindGustDir': cardinals_points, 'WindDir9am': cardinals_points, 'WindDir3pm': cardinals_points,
+                       'Mes': ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']}
+# Definir rangos para variables numéricas
+numeric_ranges = {
+    'MinTemp': (-10.0, 50.0),
+    'MaxTemp': (0.0, 50.0),
+    'Rainfall': (0.0, 200.0),
+    'Evaporation': (0.0, 25.0),
+    'Sunshine': (0.0, 15.0),
+    'WindGustSpeed': (0.0, 150.0),
+    'WindSpeed9am': (0.0, 150.0),
+    'WindSpeed3pm': (0.0, 150.0),
+    'Humidity9am': (0.0, 100.0),
+    'Humidity3pm': (0.0, 100.0),
+    'Pressure9am': (900.0, 1100.0),
+    'Pressure3pm': (900.0, 1100.0),
+    'Cloud9am': (0.0, 9.0),
+    'Cloud3pm': (0.0, 9.0),
+    'Temp9am': (-10.0, 50.0),
+    'Temp3pm': (-10.0, 50.0)
+}
 
-# Cargar el modelo previamente entrenado
-ruta = '/home/rama811/Descargas/modelo_clas.joblib'
-modelo_entrenado = joblib.load(ruta)
 
-# Obtener la lista de variables
-variables_num = ['MinTemp', 'MaxTemp', 'Rainfall', 'Evaporation', 'Sunshine',
-       'WindGustSpeed', 'WindSpeed9am', 'WindSpeed3pm', 'Humidity9am',
-       'Humidity3pm', 'Pressure9am', 'Pressure3pm', 'Cloud9am', 'Cloud3pm',
-       'Temp9am', 'Temp3pm']
+# Función para predecir
+def predict_rain(data, modelo):
+    prediction = modelo.predict(data)
+    return prediction
 
-variables_cat = ['RainToday', 'WindGustDir_E', 'WindGustDir_ENE',
-       'WindGustDir_ESE', 'WindGustDir_N', 'WindGustDir_NE', 'WindGustDir_NNE',
-       'WindGustDir_NNW', 'WindGustDir_NW', 'WindGustDir_S', 'WindGustDir_SE',
-       'WindGustDir_SSE', 'WindGustDir_SSW', 'WindGustDir_SW', 'WindGustDir_W',
-       'WindGustDir_WNW', 'WindGustDir_WSW', 'WindDir9am_E', 'WindDir9am_ENE',
-       'WindDir9am_ESE', 'WindDir9am_N', 'WindDir9am_NE', 'WindDir9am_NNE',
-       'WindDir9am_NNW', 'WindDir9am_NW', 'WindDir9am_S', 'WindDir9am_SE',
-       'WindDir9am_SSE', 'WindDir9am_SSW', 'WindDir9am_SW', 'WindDir9am_W',
-       'WindDir9am_WNW', 'WindDir9am_WSW', 'WindDir3pm_E', 'WindDir3pm_ENE',
-       'WindDir3pm_ESE', 'WindDir3pm_N', 'WindDir3pm_NE', 'WindDir3pm_NNE',
-       'WindDir3pm_NNW', 'WindDir3pm_NW', 'WindDir3pm_S', 'WindDir3pm_SE',
-       'WindDir3pm_SSE', 'WindDir3pm_SSW', 'WindDir3pm_SW', 'WindDir3pm_W',
-       'WindDir3pm_WNW', 'WindDir3pm_WSW', 'Mes_1', 'Mes_2', 'Mes_3', 'Mes_4',
-       'Mes_5', 'Mes_6', 'Mes_7', 'Mes_8', 'Mes_9', 'Mes_10', 'Mes_11',
-       'Mes_12']
+# Interfaz de usuario de Streamlit
+def main():
+    # Crear campos de entrada para que el usuario ingrese los datos
+    st.sidebar.header('Ingrese los datos para la predicción')
+    new_data = {}
+    # Variables numéricas
+    for feature in numeric_features:
+        min_val, max_val = numeric_ranges[feature]
+        new_data[feature] = st.sidebar.number_input(f'Ingrese {feature}', min_value=min_val, max_value=max_val)
+    # Variables categóricas
+    for feature in categorical_features:
+        options = st.sidebar.selectbox(f'Seleccione {feature}', categorical_options[feature])
+        new_data[feature] = options
+    # Convertir los datos ingresados a un DataFrame
+    data = pd.DataFrame([new_data])
+    # Interfaz de usuario para predecir
+    if st.sidebar.button('Predecir'):
+        prediction_clas = predict_rain(data, modelo_clas)
+        prediction_reg = predict_rain(data, modelo_reg)
+        # Establecer título
+        st.title('Predicción de lluvia:')
+        if prediction_clas[0] == 'Yes':
+            st.write(f"Lloverán {format(prediction_reg[0], '.2f')} milímetros")
+        else:
+            st.write("No lloverá")
+        
 
-# Sidebar variables categóricas
-st.sidebar.header('Variables categóricas:')
-valores_input = []
-for variable in variables_cat:
-    # Utilizar checkbox para variables binarias
-    valor = st.sidebar.checkbox(f'{variable}')
-    valores_input.append(valor)
-
-# Sidebar variables numéricas
-st.sidebar.header('Variables numéricas:')
-for variable in variables_num:
-    valor = st.sidebar.number_input(f'{variable}', min_value=-10.0, max_value=1100.0)
-    valores_input.append(valor)
-
-# Crear un array numpy con los valores de entrada
-datos_para_predecir = np.array([valores_input])
-
-# Realizar la predicción con el modelo
-prediccion = modelo_entrenado.predict(datos_para_predecir)
-
-# Mostrar la predicción en la interfaz de Streamlit
-umbral = 0.5
-
-if prediccion[0] < umbral:
-    st.write('Predicción: No lloverá')
-else:
-    st.write('Predicción: Lloverá')
-
+if __name__ == "__main__":
+    main()
